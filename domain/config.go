@@ -1,6 +1,9 @@
 package domain
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type Config []Action
 
@@ -9,9 +12,36 @@ type Action struct {
 	Parameters json.RawMessage `json:"parameters"`
 }
 
+func (a *Action) GetParametersBuild() (result ParametersBuild, err error) {
+	result = ParametersBuild{}
+	err = json.Unmarshal(a.Parameters, &result)
+	return
+}
+
+func (a *Action) GetParametersPush() (result ParametersPush, err error) {
+	result = ParametersPush{}
+	err = json.Unmarshal(a.Parameters, &result)
+	return
+}
+
+func (a *Action) GetParametersCall() (result ParametersCall, err error) {
+	result = ParametersCall{}
+	err = json.Unmarshal(a.Parameters, &result)
+	return
+}
+
 type ParametersBuild struct {
 	Tag        string `json:"tag"`
 	Dockerfile string `json:"dockerfile"`
+}
+
+func (p *ParametersBuild) ToArgs() (args []string) {
+	args = []string{"docker", "build", "-t", p.Tag}
+	if p.Dockerfile != "" {
+		args = append(args, fmt.Sprint("--file=", p.Dockerfile))
+	}
+	args = append(args, ".")
+	return
 }
 
 type ParametersPush struct {

@@ -1,51 +1,76 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/just1689/buplish/disk"
 	"github.com/just1689/buplish/domain"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
+	"io"
+	"os/exec"
 )
 
 var configFile = flag.String("config", "buplish.json", "Set the file for buplish to use")
 var initFile = flag.Bool("init", false, "Set to true to generate an empty config")
 
-func main() {
-	flag.Parse()
+var actionHandlers = map[string]func(action domain.Action, num int){
+	"BUILD": handleBuild,
+	"PUSH": func(action domain.Action, num int) {
+		fmt.Println("push...")
+	},
+	"CALL": func(action domain.Action, num int) {
+		fmt.Println("call...")
+	},
+}
 
-	if *initFile {
-		generateFile()
+func main() {
+	o, _ := exec.Command("docker", "build", "-t", "team/repo:version", ".").StdoutPipe()
+	p := make([]byte, 256)
+	for {
+		n, err := o.Read(p)
+		if err == io.EOF {
+			break
+		}
+		fmt.Println(string(p[:n]))
+	}
+
+	if true {
 		return
 	}
 
-	config := loadConfig()
-	for a, b := range config {
-		fmt.Sprintln("For rule %i action is %s", a, b.Action)
+	flag.Parse()
+	if *initFile {
+		disk.GenerateFile(configFile)
+		return
+	}
+
+	config := disk.LoadConfig(configFile)
+	logrus.Println("Configuration loaded. Running tasks", len(config))
+	for num, action := range config {
+		f, found := actionHandlers[action.Action]
+		if !found {
+			logrus.Fatalln("unrecognized action:", action.Action)
+		}
+		f(action, num)
 	}
 
 }
 
-func generateFile() {
-	c := domain.GetExampleConfig()
-	b, err := json.Marshal(c)
+func handleBuild(action domain.Action, num int) {
+	detail, err := action.GetParametersBuild()
+	if err != nil {
+		logrus.Errorln("Failed at ", num, action.Action)
+		logrus.Panic(err)
+	}
+	args := detail.ToArgs()
+	fmt.Println(args)
+	c := exec.Command("cmd.exe", args...)
 	if err != nil {
 		logrus.Panic(err)
 	}
-	ioutil.WriteFile(*configFile, b, 0600)
 
-}
-
-func loadConfig() domain.Config {
-	b, err := ioutil.ReadFile(*configFile)
-	if err != nil {
-		logrus.Panic(err)
+	if err := c.Run(); err != nil {
+		logrus.Errorln(err)
 	}
-	result := domain.Config{}
-	if err = json.Unmarshal(b, &result); err != nil {
-		logrus.Panic("Could not unmarshal with err ", err.Error())
-	}
-	return result
 
 }
