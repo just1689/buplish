@@ -28,34 +28,7 @@ func main() {
 }
 
 func generateFile() {
-	c := domain.Config{
-		domain.Action{
-			Action: "BUILD",
-		},
-		domain.Action{
-			Action: "PUSH",
-		},
-		domain.Action{
-			Action: "CALL",
-		},
-	}
-
-	bp := domain.ParametersBuild{
-		Tag:        "team/repo:version",
-		Dockerfile: "",
-	}
-	c[0].Parameters, _ = json.Marshal(bp)
-
-	pp := domain.ParametersPush{
-		Tag: "team/repo:version",
-	}
-	c[1].Parameters, _ = json.Marshal(pp)
-	cp := domain.ParametersCall{
-		Method: "POST",
-		URI:    "https://buildserver.com/webhooks/x",
-	}
-	c[2].Parameters, _ = json.Marshal(cp)
-
+	c := domain.GetExampleConfig()
 	b, err := json.Marshal(c)
 	if err != nil {
 		logrus.Panic(err)
